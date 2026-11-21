@@ -1,25 +1,17 @@
-# Part 5 — Answers
+### Migration Plan from ingress-nginx to Gateway API
 
-> **Draft written with AI help. Rewrite in your own words before submitting. You must be able to defend every bullet live.**
+- **Step 1 – Check Existing Ingresses:** First, I will list all 40 Ingresses and check their configurations, especially annotations, because some annotations may not be supported in Gateway API.
 
-## Q1. Migrating about 40 Ingresses on ingress-nginx (end-of-life) to the Gateway API, without downtime
+- **Step 2 – Set Up New Controller:** I will install the new Gateway API controller alongside the existing ingress-nginx controller with a separate IP address. This will keep the current application running without any impact.
 
-**Approach and order**
+- **Step 3 – Convert the Routes:** I will use the `ingress2gateway` tool to convert the existing Ingresses into Gateway API routes. Then I will manually review each route to make sure everything is configured correctly.
 
-- **Inventory first.** Export all Ingresses. Flag every annotation (rewrite-target, auth, rate limits, timeouts, body size, `configuration-snippet`). Those are the parts that will not translate cleanly.
-- **Run side by side.** Install a conformant Gateway API controller with its own LoadBalancer IP. ingress-nginx keeps serving traffic, so nothing moves yet.
-- **Convert, then review by hand.** Use `ingress2gateway` to generate draft HTTPRoutes. Its output is lossy for custom annotations, so review each route.
-- **Verify before cutover.** Test each route against the new IP (for example `curl --resolve host:443:<new-ip>`) and compare responses with the old path.
-- **Move hostnames in small batches.** Lower DNS TTLs in advance. Switch one batch at a time, and keep the old Ingress and DNS record for a rollback window.
-- **Remove ingress-nginx last**, once every host has been on the new path past the rollback window.
+- **Step 4 – Test the Application:** Before switching, I will send test requests to the new IP and compare the responses with the existing application to confirm everything is working properly.
 
-**What I expect to break**
+- **Step 5 – Migrate Slowly:** I will move the hostnames in small batches instead of migrating everything at once. Before migration, I will reduce the DNS TTL so clients can pick up the new IP quickly. This will also help us switch back to the old IP faster if any issue occurs.
 
-- Annotations with no Gateway API equivalent, or with different defaults.
-- Path matching differences: Prefix vs PathPrefix, trailing slashes, regex.
-- TLS: certificate secrets referenced across namespaces need a ReferenceGrant.
-- Client IP handling and `externalTrafficPolicy` changes.
-- The new LoadBalancer IP breaking allowlists or hardcoded addresses.
-- Route ownership across teams, which needs RBAC changes.
+- **Step 6 – Remove Old Controller:** Once all applications are working properly and the rollback period is completed, I will remove the old ingress-nginx controller.
 
-Because ingress-nginx is end-of-life, it receives no security fixes, so the timeline is driven by that risk.
+- **Possible Issues:** Some annotations may not have direct replacements. I will also check path-matching differences, TLS certificates across namespaces, client IP forwarding, IP-based allowlists, and which team is responsible for managing each route.
+
+- **Why This Migration Is Important:** The ingress-nginx controller is reaching its end of life, so it will no longer receive security fixes or updates. We need to complete the migration to keep our applications secure and supported.

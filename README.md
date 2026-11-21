@@ -2,15 +2,15 @@
 
 A small HTTP service, containerized, deployed to a local kind cluster with a Helm chart and a one-command setup script. Part 4 (the debug lab) lives in `lab/`.
 
-**Status (be precise):** the service's unit tests pass. The Docker build, kind, Helm and `setup.sh` have **not yet been run** on the machine this was written on (no Docker/kind/helm there). They must be run on the Ubuntu machine using the steps below, and this section updated with the real results before submission.
+**Status:** the service's unit tests pass. The Docker build, kind, Helm and `setup.sh` ran successfully on Ubuntu, and `helm lint` passes. Part 4 is in progress: 9 of 11 `verify` checks pass, and the reporter is still open (see `lab/FINDINGS.md`, Defect 7).
 
 | Part | Status |
 |---|---|
-| 1. Service + Dockerfile | Code and 5 unit tests written and passing (`node --test`). Image build not yet run. |
-| 2. Helm chart | Written. `helm lint` / `helm template` not yet run. |
-| 3. `setup.sh` | Written. Not yet run (needs Docker + kind). Idempotency not yet verified. |
-| 4. Debug lab | Not done here. Must be done on your own cluster, with your own recording. |
-| 5. ANSWERS.md | Draft. Must be rewritten in your own words. |
+| 1. Service + Dockerfile | Code and 5 unit tests pass (`node --test`). Image built and ran on Ubuntu. |
+| 2. Helm chart | `helm lint chart` passes. Overrides checked with `helm template`. Deployed on Ubuntu. |
+| 3. `setup.sh` | Ran on Ubuntu, and a second run succeeded (idempotency checked). Ingress reachable at `demo.local`. |
+| 4. Debug lab | 9 of 11 `verify` checks pass. Defects 1 to 6 fixed and written up in `lab/FINDINGS.md`. Reporter still open (Defect 7). |
+| 5. ANSWERS.md | Rewritten in my own words. |
 | 6. README | This file. |
 
 ## Layout
@@ -19,7 +19,7 @@ A small HTTP service, containerized, deployed to a local kind cluster with a Hel
 setup.sh          one-command kind + ingress-nginx + image + helm setup
 service/          app.js, app.test.js, package.json, Dockerfile, .dockerignore
 chart/            Helm chart: Deployment, Service, ConfigMap, Ingress
-lab/              Part 4 handout, copied unchanged (fixes go in lab/broken-chart)
+lab/              Part 4 handout (fixes go in lab/broken-chart)
 ANSWERS.md        Part 5
 ```
 
@@ -28,7 +28,7 @@ ANSWERS.md        Part 5
 Prerequisites: Docker Engine (your user in the `docker` group), `kind`, `kubectl`, `helm`, `curl`. Ports 80 and 443 on the host must be free.
 
 ```bash
-git clone <your-repo-url> eb-devops-takehome
+git clone https://github.com/Lokesh55raja/eb-devops-takehome.git
 cd eb-devops-takehome
 ./setup.sh          # first run
 ./setup.sh          # second run must also exit 0 (idempotency)
@@ -77,7 +77,7 @@ curl -H 'Host: demo.local' http://localhost/          # version is now 0.2.0
 | Memory | 64Mi | 128Mi |
 
 - **Requests** are what the scheduler reserves. The app is an idle Node.js process that answers small JSON requests, so 50m CPU and 64Mi cover it with margin. Small requests let both replicas fit on a single kind node next to ingress-nginx.
-- **Memory limit 128Mi** is about 2x the typical resident size of a Node process. Node garbage-collects inside its heap, so a limit that is too tight gets the container OOM-killed; too loose hides leaks. 
+- **Memory limit 128Mi** is about 2x the typical resident size of a Node process. Node garbage-collects inside its heap, so a limit that is too tight gets the container OOM-killed; too loose hides leaks.
 - **CPU limit 200m** can throttle Node's startup, which uses more CPU than steady state. This may slow readiness on a cold start. I did not load-test these numbers, so treat them as a reasoned starting point, not measured values.
 
 ## What I deliberately skipped, and the risk
@@ -90,7 +90,7 @@ curl -H 'Host: demo.local' http://localhost/          # version is now 0.2.0
 - **`setup.sh` smoke check only warns** if the ingress is not reachable, so a re-run can't fail just because the controller is still warming up. Risk: a broken ingress can pass setup silently. The `kubectl` commands in "How to verify" catch this.
 - **Image pinned to `node:22.11.0-bookworm-slim`** without a digest. Pinning by digest would make builds fully reproducible.
 - **ingress-nginx is end-of-life.** `setup.sh` installs it because the brief asks for it. It should not be used for anything beyond this exercise. See `ANSWERS.md`.
-- **`setup.sh` installs an ingress-nginx chart version I did not verify on a live cluster** (`4.11.3`). If `helm upgrade --install` fails on that version, check `helm search repo ingress-nginx/ingress-nginx --versions` and set `INGRESS_NGINX_CHART_VERSION`.
+- **`setup.sh` uses ingress-nginx chart `4.11.3`.** I installed it successfully on Ubuntu. If a future install fails, check `helm search repo ingress-nginx/ingress-nginx --versions` and set `INGRESS_NGINX_CHART_VERSION`.
 
 ## What I would change for production
 
@@ -103,10 +103,15 @@ curl -H 'Host: demo.local' http://localhost/          # version is now 0.2.0
 
 ## How I used AI
 
-> **Draft. Edit this to match what actually happened before you submit it.**
-
 - Tool: Claude (Claude Code, Haiku 5.5), in one session.
 - Used for: drafting the service code, tests, Dockerfile, Helm chart, `setup.sh`, and the first drafts of this README and `ANSWERS.md`, from the assignment text.
-- Checked by me: the service tests were run and pass. Nothing else has been run yet.
-- What I had to correct: _[fill in: e.g. the ingress-nginx version, any template or script fix you made after running it]_
+- Checked by me: the unit tests pass. The Docker build, kind cluster, Helm install and `setup.sh` (run twice) were run on Ubuntu. Part 4 defects were found and fixed by me, using `kubectl`, `docker inspect` and the event logs.
+- What I had to correct after running it:
+  - The migrate Job's `restartPolicy` was `Always`; changed to `Never`.
+  - Added `runAsUser: 65532` to the six templates, because `runAsNonRoot` needs a numeric user.
+  - Added `PORT: "8080"` for the backend, gateway, reporter, worker and metrics, because the app defaulted to 8081.
+  - Fixed the gateway's `BACKEND_URL` namespace (`default` to `debug-lab`).
+  - Lowered the metrics CPU request and limit to fit the cluster's 1-CPU cap.
+  - Changed the RBAC subject from `default` to `reporter`.
+  - Gave the worker an `emptyDir` volume at `/var/cache/app` for its cache.
 - Not AI-written: Part 4. Every defect in the lab, and the session recording, is my own work on my own cluster.

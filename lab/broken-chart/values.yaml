@@ -21,6 +21,7 @@ backend:
     APP_MODE: "api"
     APP_NAME: "backend"
     VERSION: "2.0.0"
+    PORT: "8080"
   resources:
     requests:
       cpu: "50m"
@@ -34,8 +35,9 @@ gateway:
   env:
     APP_MODE: "gateway"
     APP_NAME: "gateway"
+    PORT: "8080"
     VERSION: "2.0.0"
-    BACKEND_URL: "http://backend.default.svc:8080"
+    BACKEND_URL: "http://backend.debug-lab.svc:8080"
   resources:
     requests:
       cpu: "50m"
@@ -49,6 +51,7 @@ worker:
   env:
     APP_MODE: "worker"
     APP_NAME: "worker"
+    PORT: "8080"
     VERSION: "2.0.0"
   resources:
     requests:
@@ -62,6 +65,7 @@ reporter:
   replicas: 1
   serviceAccountName: reporter
   env:
+    PORT: "8080"
     APP_MODE: "reporter"
     APP_NAME: "reporter"
     VERSION: "2.0.0"
@@ -78,13 +82,14 @@ metrics:
   env:
     APP_MODE: "api"
     APP_NAME: "metrics"
+    PORT: "8080"
     VERSION: "2.0.0"
   resources:
     requests:
-      cpu: "2"
+      cpu: "50m"
       memory: "64Mi"
     limits:
-      cpu: "4"
+      cpu: "200m"
       memory: "128Mi"
 
 migrate:

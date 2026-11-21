@@ -36,6 +36,7 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
           securityContext:
+            runAsUser: 65532
             runAsNonRoot: true
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -43,3 +44,14 @@ spec:
               drop: ["ALL"]
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/app
+      volumes:
+        - name: cache
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/app
+      volumes:
+        - name: cache
+          emptyDir: {}
