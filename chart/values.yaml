@@ -1,0 +1,51 @@
+# Default values. Everything the templates use lives here.
+replicaCount: 2
+
+image:
+  repository: eb-demo-app
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+config:
+  appName: demo-app
+  version: "0.1.0"
+
+fullnameOverride: ""
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: demo.local
+  path: /
+  pathType: Prefix
+
+probes:
+  path: /healthz
+  liveness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 2
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 2
+
+# Sized for a tiny Node process; see README for the reasoning.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Non-root UID/GID; must match the USER in service/Dockerfile.
+runAsUser: 1000
