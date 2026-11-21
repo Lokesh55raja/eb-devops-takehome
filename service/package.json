@@ -1,0 +1,14 @@
+{
+  "name": "eb-demo-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tiny HTTP service: GET / and GET /healthz. No runtime dependencies.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
